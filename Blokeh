@@ -1,0 +1,46 @@
+// App.js - اپ بلوکه برای اجرا در Snack by Expo import React, { useState, useEffect } from 'react'; import { SafeAreaView, View, Text, TextInput, Button, FlatList, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native'; import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export default function App() { const [kilo, setKilo] = useState(''); const [transactionType, setTransactionType] = useState(''); const [pricePerMithqal, setPricePerMithqal] = useState(''); const [blockAmount, setBlockAmount] = useState(''); const [history, setHistory] = useState([]);
+
+const MITHQAL_FACTOR = 4.3318;
+
+const calcMithqal = (kiloValue) => { const k = parseFloat(kiloValue); if (isNaN(k) || k < 1) return 0; return k * 1000 / MITHQAL_FACTOR; };
+
+const calcAmount = () => { const mithqal = calcMithqal(kilo); let amount = 0; if (transactionType === 'خرید' || transactionType === 'فروش') { const price = parseFloat(pricePerMithqal); if (isNaN(price)) return 0; amount = mithqal * price; if (transactionType === 'خرید') amount *= -1; } else if (transactionType === 'دریافت بلوکه' || transactionType === 'پرداخت بلوکه') { const block = parseFloat(blockAmount); if (isNaN(block)) return 0; amount = block * mithqal; if (transactionType === 'پرداخت بلوکه') amount *= -1; } return amount; };
+
+const addTransaction = async () => { const amount = calcAmount(); if (!transactionType) return Alert.alert('خطا', 'نوع تراکنش را انتخاب کنید'); if ((transactionType === 'خرید' || transactionType === 'فروش') && (!pricePerMithqal || isNaN(pricePerMithqal))) { return Alert.alert('خطا', 'قیمت مثقال را وارد کنید'); } if ((transactionType === 'دریافت بلوکه' || transactionType === 'پرداخت بلوکه') && (!blockAmount || isNaN(blockAmount))) { return Alert.alert('خطا', 'مقدار بلوکه را وارد کنید'); }
+
+const newTx = {
+  id: Date.now().toString(),
+  type: transactionType,
+  kilo: parseFloat(kilo),
+  mithqal: calcMithqal(kilo),
+  pricePerMithqal: transactionType === 'خرید' || transactionType === 'فروش' ? parseFloat(pricePerMithqal) : null,
+  blockAmount: transactionType === 'دریافت بلوکه' || transactionType === 'پرداخت بلوکه' ? parseFloat(blockAmount) : null,
+  amount: amount,
+  date: new Date().toLocaleString()
+};
+
+const updatedHistory = [newTx, ...history];
+setHistory(updatedHistory);
+try {
+  await AsyncStorage.setItem('@transactions', JSON.stringify(updatedHistory));
+} catch (e) { console.log(e); }
+
+setKilo(''); setPricePerMithqal(''); setBlockAmount(''); setTransactionType('');
+
+};
+
+const loadHistory = async () => { try { const raw = await AsyncStorage.getItem('@transactions'); if (raw) setHistory(JSON.parse(raw)); } catch (e) { console.log(e); } };
+
+useEffect(() => { loadHistory(); }, []);
+
+return ( <SafeAreaView style={{ flex: 1, padding: 16 }}> <ScrollView> <Text style={styles.title}>بلوکه - مدیریت طلا و بلوکه</Text>
+
+<TextInput placeholder="مقدار طلا (کیلو)" value={kilo} onChangeText={setKilo} keyboardType="numeric" style={styles.input} />
+
+    <Text style={{ marginTop: 8 }}>نوع تراکنش:</Text>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginVertical: 8 }}>
+      {['خرید', 'فروش', 'دریافت بلوکه', 'پرداخت بلوکه'].map(t => (
+        <TouchableOpacity key={t} onPress={()
+
